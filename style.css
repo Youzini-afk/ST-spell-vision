@@ -1,0 +1,159 @@
+/* ============================================
+   Spell Vision - SillyTavern Extension Styles
+   ============================================ */
+
+/* ---------- Settings Panel ---------- */
+#spell-vision-settings {
+    padding: 10px 0;
+}
+
+#spell-vision-settings h4 {
+    margin-bottom: 8px;
+}
+
+#spell-vision-settings label {
+    display: block;
+    margin-top: 8px;
+    margin-bottom: 2px;
+    font-weight: 600;
+    font-size: 0.9em;
+}
+
+#spell-vision-settings input[type="text"],
+#spell-vision-settings input[type="password"],
+#spell-vision-settings select {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+#spell-vision-settings .spell-vision-note {
+    font-size: 0.8em;
+    opacity: 0.7;
+    margin-top: 2px;
+}
+
+/* ---------- Spell Container ---------- */
+.spell-vision-container {
+    position: relative;
+    width: 100%;
+    max-width: 360px;
+    margin: 12px auto;
+    border-radius: 12px;
+    overflow: hidden;
+    background: radial-gradient(ellipse at center, rgba(10, 5, 30, 0.95), rgba(0, 0, 0, 0.98));
+    border: 1px solid rgba(120, 80, 255, 0.25);
+    box-shadow: 0 0 20px rgba(100, 60, 255, 0.15);
+}
+
+.spell-vision-container svg {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.spell-vision-label {
+    text-align: center;
+    padding: 6px 10px;
+    font-size: 0.8em;
+    color: rgba(200, 180, 255, 0.8);
+    background: rgba(0, 0, 0, 0.4);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.spell-vision-error {
+    padding: 8px 12px;
+    font-size: 0.8em;
+    color: #ff6b6b;
+    background: rgba(255, 50, 50, 0.1);
+    border-radius: 8px;
+    margin: 8px 0;
+    border: 1px solid rgba(255, 50, 50, 0.2);
+}
+
+.spell-vision-loading {
+    padding: 16px;
+    text-align: center;
+    color: #c4b5fd;
+}
+
+/* ---------- SVG Glow Filters ---------- */
+.spell-vision-container .glow-soft {
+    filter: url(#spellGlowSoft);
+}
+
+.spell-vision-container .glow-strong {
+    filter: url(#spellGlowStrong);
+}
+
+/* ---------- Animations ---------- */
+@keyframes sv-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(1.08); }
+}
+
+@keyframes sv-rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+@keyframes sv-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes sv-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+}
+
+@keyframes sv-flicker {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+
+/* Animation classes applied via JS */
+.sv-anim-pulse {
+    animation: sv-pulse var(--sv-duration, 2s) ease-in-out infinite;
+}
+
+.sv-anim-rotate {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: sv-rotate var(--sv-duration, 4s) linear infinite;
+}
+
+.sv-anim-fade-in {
+    animation: sv-fade-in var(--sv-duration, 1.5s) ease-out forwards;
+}
+
+.sv-anim-float {
+    animation: sv-float var(--sv-duration, 3s) ease-in-out infinite;
+}
+
+.sv-anim-flicker {
+    animation: sv-flicker var(--sv-duration, 0.15s) linear infinite;
+}
+
+/* ---------- Particles ---------- */
+.sv-particle {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    animation: sv-particle-rise var(--sv-particle-duration, 3s) ease-out infinite;
+    opacity: 0;
+}
+
+@keyframes sv-particle-rise {
+    0% {
+        opacity: 0;
+        transform: translateY(0) scale(0.5);
+    }
+    20% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+        transform: translateY(-60px) scale(0);
+    }
+}
