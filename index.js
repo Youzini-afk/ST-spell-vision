@@ -78,7 +78,7 @@ const ALLOWED_STYLE_PROPS = new Set([
     'font-weight',
     'letter-spacing',
 ]);
-const ALLOWED_ANIMATIONS = new Set(['pulse', 'rotate', 'fade-in', 'float', 'flicker', 'surge', 'shimmer']);
+const ALLOWED_ANIMATIONS = new Set(['pulse', 'rotate', 'fade-in', 'float', 'flicker', 'surge', 'shimmer', 'fly-across', 'fly-up', 'flash', 'orbit', 'shake', 'converge']);
 
 // ─── Settings ────────────────────────────────────────────────────────
 
@@ -426,7 +426,7 @@ JSON Schema:
       "style": { CSS style properties, e.g. "fill","stroke","stroke-width","opacity","fill-opacity" },
       "glow": true | false (apply glow filter),
       "glowStrength": "soft" | "strong",
-      "animation": "pulse" | "rotate" | "fade-in" | "float" | "flicker" | "surge" | "shimmer" | null,
+      "animation": "pulse" | "rotate" | "fade-in" | "float" | "flicker" | "surge" | "shimmer" | "fly-across" | "fly-up" | "flash" | "orbit" | "shake" | "converge" | null,
       "animationDuration": "string (CSS duration, e.g. '2s')",
       "animationDelay": "string (CSS delay, e.g. '-0.4s', optional)",
       "content": "string (for text type only)"
@@ -434,7 +434,8 @@ JSON Schema:
   ],
   "particles": {
     "enabled": true | false,
-    "count": number (5-30),
+    "count": number (5-40),
+    "mode": "default" | "fire" | "spark" | "snow" | "energy",
     "color": "string (CSS color)",
     "size": number (2-8, px),
     "speed": number (1-5, seconds)
@@ -442,16 +443,19 @@ JSON Schema:
 }
 
 Guidelines:
-- Build layered composition: 1 core shape + 1-3 rings/arcs + 2-6 accent trails/sparks
-- Use vibrant magical colors with contrast (warm core + cool aura OR inverse)
-- Always include at least one strong glow and one soft glow element
-- Use varied animation timings (not all identical)
-- Keep it visually impressive but not overly complex (6-16 elements)
-- Coordinates should fit within the width/height you specify
-- For polygon, use "points" attr like "100,10 40,198 190,78 10,78 160,198"
-- For path, use standard SVG path "d" attribute
-- Prefer semi-transparent layering over fully opaque flat fills
-- Respond with raw JSON only, no wrapping`;
+- **Anime/Action Style**: Create dynamic, fast-paced effects. Use "fly-across" for projectiles (fireballs, arrows), "flash" for lightning, "converge" for charging energy.
+- **Composition**:
+  - *Projectile*: Main shape with "fly-across", trailing lines/particles.
+  - *Impact*: Central shape with "shake" or "flash", expanding rings.
+  - *Buff/Aura*: "rotate" rings, "float" symbols, "shimmer" background.
+- **Colors**: Use vibrant, high-contrast colors (e.g., #ff0055, #00eeff, #ffee00).
+- **Glow**: Almost always use glow for magical elements.
+- **Particles**:
+  - "fire": Rising fast, red/orange/yellow.
+  - "spark": Erratic rising, yellow/white.
+  - "snow": Falling gently, white/blue.
+  - "energy": Converging to center, mystical colors.
+- **Respond with raw JSON only, no wrapping**.`;
 
 function toKebabCase(value) {
     return String(value).replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
@@ -594,7 +598,8 @@ function sanitizeRenderData(raw) {
     if (particles) {
         spell.particles = {
             enabled: !!particles.enabled,
-            count: Math.min(Math.max(Number(particles.count) || 10, 1), 40),
+            count: Math.min(Math.max(Number(particles.count) || 10, 1), 60),
+            mode: ['default', 'fire', 'spark', 'snow', 'energy'].includes(particles.mode) ? particles.mode : 'default',
             color: sanitizeStringValue(particles.color, 40) || '#a855f7',
             size: Math.min(Math.max(Number(particles.size) || 4, 1), 12),
             speed: Math.min(Math.max(Number(particles.speed) || 3, 0.5), 8),
@@ -893,7 +898,8 @@ function createParticles(spell, container) {
     const p = spell.particles;
     if (!p || !p.enabled) return;
 
-    const count = Math.min(p.count || 10, 40);
+    const count = Math.min(p.count || 10, 60);
+    const mode = p.mode || 'default';
     const color = p.color || '#a855f7';
     const size = p.size || 4;
     const speed = p.speed || 3;
@@ -901,12 +907,36 @@ function createParticles(spell, container) {
     for (let i = 0; i < count; i++) {
         const dot = document.createElement('div');
         dot.classList.add('sv-particle');
+        dot.classList.add(`mode-${mode}`);
         dot.style.width = `${size}px`;
         dot.style.height = `${size}px`;
         dot.style.background = color;
         dot.style.boxShadow = `0 0 ${size * 2}px ${color}`;
-        dot.style.left = `${Math.random() * 90 + 5}%`;
-        dot.style.bottom = `${Math.random() * 30}%`;
+        
+        // Randomize positions based on mode
+        let left = Math.random() * 100;
+        let bottom = Math.random() * 100;
+        
+        if (mode === 'fire' || mode === 'spark') {
+            bottom = Math.random() * 40; // Start lower
+        } else if (mode === 'snow') {
+            bottom = 90 + Math.random() * 10; // Start high
+        } else if (mode === 'energy') {
+            // Start from edges
+            if (Math.random() > 0.5) {
+                left = Math.random() > 0.5 ? -10 : 110;
+                bottom = Math.random() * 100;
+            } else {
+                left = Math.random() * 100;
+                bottom = Math.random() > 0.5 ? -10 : 110;
+            }
+            dot.style.setProperty('--sv-particle-start-x', `${left > 50 ? 100 : -100}px`);
+            dot.style.setProperty('--sv-particle-start-y', `${bottom > 50 ? 100 : -100}px`);
+        }
+
+        dot.style.left = `${left}%`;
+        dot.style.bottom = `${bottom}%`;
+
         dot.style.setProperty('--sv-particle-duration', `${speed + Math.random() * 2}s`);
         dot.style.setProperty('--sv-particle-rise', `${50 + Math.random() * 90}px`);
         dot.style.setProperty('--sv-particle-drift', `${(Math.random() * 26 - 13).toFixed(1)}px`);

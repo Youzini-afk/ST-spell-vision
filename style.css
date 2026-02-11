@@ -192,6 +192,7 @@
 }
 
 /* Animation classes applied via JS */
+/* Animation classes applied via JS */
 .sv-anim-pulse {
     animation: sv-pulse var(--sv-duration, 2s) ease-in-out infinite;
 }
@@ -211,7 +212,7 @@
 }
 
 .sv-anim-flicker {
-    animation: sv-flicker var(--sv-duration, 0.15s) linear infinite;
+    animation: sv-flicker var(--sv-duration, 0.15s) linear infinite; /* Faster default */
 }
 
 .sv-anim-surge {
@@ -222,34 +223,153 @@
     animation: sv-shimmer var(--sv-duration, 1.6s) ease-in-out infinite;
 }
 
+/* New Anime-Style Animations */
+.sv-anim-fly-across {
+    animation: sv-fly-across var(--sv-duration, 1.2s) linear infinite;
+}
+
+.sv-anim-fly-up {
+    animation: sv-fly-up var(--sv-duration, 1.5s) ease-in infinite;
+}
+
+.sv-anim-flash {
+    animation: sv-flash var(--sv-duration, 0.5s) ease-out infinite;
+}
+
+.sv-anim-orbit {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: sv-orbit var(--sv-duration, 3s) linear infinite;
+}
+
+.sv-anim-shake {
+    animation: sv-shake var(--sv-duration, 0.4s) linear infinite;
+}
+
+.sv-anim-converge {
+    animation: sv-converge var(--sv-duration, 2s) ease-in infinite;
+}
+
+/* Keyframes for new animations */
+@keyframes sv-fly-across {
+    0% { transform: translateX(-120%) scale(0.8); opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { transform: translateX(120%) scale(1.1); opacity: 0; }
+}
+
+@keyframes sv-fly-up {
+    0% { transform: translateY(120%) scale(0.5); opacity: 0; }
+    20% { opacity: 1; }
+    100% { transform: translateY(-120%) scale(1.2); opacity: 0; }
+}
+
+@keyframes sv-flash {
+    0%, 100% { opacity: 1; filter: brightness(1); }
+    5% { opacity: 0.8; filter: brightness(2); }
+    10% { opacity: 1; filter: brightness(1); }
+}
+
+@keyframes sv-orbit {
+    from { transform: rotate(0deg) translateX(40px) rotate(0deg); }
+    to { transform: rotate(360deg) translateX(40px) rotate(-360deg); }
+}
+
+@keyframes sv-shake {
+    0% { transform: translate(1px, 1px) rotate(0deg); }
+    10% { transform: translate(-1px, -2px) rotate(-1deg); }
+    20% { transform: translate(-3px, 0px) rotate(1deg); }
+    30% { transform: translate(3px, 2px) rotate(0deg); }
+    40% { transform: translate(1px, -1px) rotate(1deg); }
+    50% { transform: translate(-1px, 2px) rotate(-1deg); }
+    60% { transform: translate(-3px, 1px) rotate(0deg); }
+    70% { transform: translate(3px, 1px) rotate(-1deg); }
+    80% { transform: translate(-1px, -1px) rotate(1deg); }
+    90% { transform: translate(1px, 2px) rotate(0deg); }
+    100% { transform: translate(1px, -2px) rotate(-1deg); }
+}
+
+@keyframes sv-converge {
+    0% { transform: scale(2); opacity: 0; }
+    50% { opacity: 0.8; }
+    100% { transform: scale(0.1); opacity: 1; }
+}
+
+/* ---------- Particles ---------- */
 /* ---------- Particles ---------- */
 .sv-particle {
     position: absolute;
     border-radius: 50%;
     pointer-events: none;
     z-index: 2;
+    will-change: transform, opacity;
+}
+
+/* Default (Floating) */
+.sv-particle.mode-default {
     animation:
         sv-particle-rise var(--sv-particle-duration, 3s) cubic-bezier(0.2, 0.6, 0.2, 1) infinite,
         sv-particle-twinkle calc(var(--sv-particle-duration, 3s) * 0.45) ease-in-out infinite;
     opacity: 0;
-    will-change: transform, opacity;
 }
 
+/* Fire/Spark (Rising fast + lateral shake) */
+.sv-particle.mode-fire,
+.sv-particle.mode-spark {
+    border-radius: 40% 60% 60% 40% / 40% 50% 50% 60%; /* Slightly irregular */
+    animation:
+        sv-particle-fire-rise var(--sv-particle-duration, 1.5s) ease-out infinite,
+        sv-particle-twinkle 0.5s ease-in-out infinite alternate;
+    opacity: 0;
+    mix-blend-mode: screen;
+}
+
+/* Snow/Ice (Floating down) */
+.sv-particle.mode-snow {
+    animation:
+        sv-particle-fall var(--sv-particle-duration, 4s) linear infinite,
+        sv-particle-sway 3s ease-in-out infinite alternate;
+    opacity: 0;
+}
+
+/* Energy/Converge (Moving towards center/target) */
+.sv-particle.mode-energy {
+    animation: sv-particle-converge var(--sv-particle-duration, 1.5s) ease-in infinite;
+    opacity: 0;
+}
+
+/* Keyframes */
 @keyframes sv-particle-rise {
-    0% {
-        opacity: 0;
-        transform: translate3d(0, 0, 0) scale(0.35);
-    }
-    20% {
-        opacity: 1;
-    }
-    100% {
-        opacity: 0;
-        transform: translate3d(var(--sv-particle-drift, 0px), calc(-1 * var(--sv-particle-rise, 70px)), 0) scale(var(--sv-particle-scale-end, 0.2));
-    }
+    0% { opacity: 0; transform: translate3d(0, 0, 0) scale(0.35); }
+    20% { opacity: 1; }
+    100% { opacity: 0; transform: translate3d(var(--sv-particle-drift, 0px), calc(-1 * var(--sv-particle-rise, 70px)), 0) scale(var(--sv-particle-scale-end, 0.2)); }
+}
+
+@keyframes sv-particle-fire-rise {
+    0% { opacity: 0; transform: translate3d(0, 0, 0) scale(0.8); }
+    10% { opacity: 1; }
+    100% { opacity: 0; transform: translate3d(var(--sv-particle-drift, 0px), -120px, 0) scale(0); }
+}
+
+@keyframes sv-particle-fall {
+    0% { opacity: 0; transform: translate3d(0, -20px, 0) scale(0.8); }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { opacity: 0; transform: translate3d(var(--sv-particle-drift, 0px), 150px, 0) scale(0.4); }
+}
+
+@keyframes sv-particle-sway {
+    from { margin-left: -10px; }
+    to { margin-left: 10px; }
+}
+
+@keyframes sv-particle-converge {
+    0% { opacity: 0; transform: translate3d(var(--sv-particle-start-x, 100px), var(--sv-particle-start-y, 100px), 0) scale(1.5); }
+    20% { opacity: 1; }
+    100% { opacity: 0; transform: translate3d(0, 0, 0) scale(0.2); }
 }
 
 @keyframes sv-particle-twinkle {
     0%, 100% { filter: brightness(0.9); }
-    50% { filter: brightness(1.35); }
+    50% { filter: brightness(1.5); }
 }
