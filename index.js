@@ -1,6 +1,6 @@
 /**
  * Spell Vision - SillyTavern Extension
- * Detects <spell> tags in AI replies, translates them to render instructions
+ * Detects spell markers in AI replies, translates them to render instructions
  * via an OpenAI-compatible API, and renders SVG spell effects in chat.
  */
 
@@ -23,6 +23,14 @@ const DOM_RETRY_DELAY_MS = 200;
 const TRANSLATE_TIMEOUT_MS = 30000;
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const INIT_GUARD_KEY = '__spellVisionInitialized';
+const SV_PRIMARY_TAG = {
+    open: '[[SV::SPELL::BEGIN::A9X5]]',
+    close: '[[SV::SPELL::END::A9X5]]',
+};
+const SV_LEGACY_TAGS = [
+    { open: '<spell>', close: '</spell>' },
+    { open: '[spell]', close: '[/spell]' },
+];
 
 const ALLOWED_ELEMENT_TYPES = new Set(['circle', 'rect', 'ellipse', 'line', 'polygon', 'path', 'text']);
 const ALLOWED_ATTRS = new Set([
@@ -118,7 +126,7 @@ function createSettingsUI() {
 
                 <hr />
                 <div class="spell-vision-note" style="margin-top:8px;">
-                    ⚡ 安装后请在世界书中添加 worldbook-template.json 的内容，让 AI 输出 &lt;spell&gt; 标签。
+                    ⚡ 安装后请在世界书中添加 worldbook-template.json 的内容，让 AI 输出 [[SV::SPELL::BEGIN::A9X5]]...[[SV::SPELL::END::A9X5]]。
                 </div>
             </div>
         </div>
@@ -149,7 +157,7 @@ function createSettingsUI() {
 // ─── Spell Tag Parser ────────────────────────────────────────────────
 
 /**
- * Extract all <spell>...</spell> blocks from text.
+ * Extract spell description blocks from primary/legacy markers.
  * Returns array of { raw, description }.
  */
 function extractSpellTags(text) {
@@ -157,12 +165,65 @@ function extractSpellTags(text) {
         return [];
     }
 
-    const regex = /<spell>([\s\S]*?)<\/spell>/gi;
+    const extractByTokens = (input, openToken, closeToken) => {
+        const chunks = [];
+        let cursor = 0;
+
+        while (cursor < input.length) {
+            const start = input.indexOf(openToken, cursor);
+            if (start === -1) break;
+
+            const contentStart = start + openToken.length;
+            const end = input.indexOf(closeToken, contentStart);
+            if (end === -1) break;
+
+            const raw = input.slice(start, end + closeToken.length);
+            const description = input.slice(contentStart, end).trim();
+            if (description) {
+                chunks.push({ raw, description });
+            }
+
+            cursor = end + closeToken.length;
+        }
+
+        return chunks;
+    };
+
+    const candidates = [
+        SV_PRIMARY_TAG,
+        ...SV_LEGACY_TAGS,
+    ];
+    const seen = new Set();
     const results = [];
-    let match;
-    while ((match = regex.exec(text)) !== null) {
-        results.push({ raw: match[0], description: match[1].trim() });
+
+    for (const tag of candidates) {
+        const chunks = extractByTokens(text, tag.open, tag.close);
+        for (const chunk of chunks) {
+            const key = `${chunk.raw}\n${chunk.description}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            results.push(chunk);
+        }
     }
+
+    // Case-insensitive compatibility for legacy tags.
+    const legacyPatterns = [
+        /<spell>([\s\S]*?)<\/spell>/gi,
+        /\[spell\]([\s\S]*?)\[\/spell\]/gi,
+    ];
+    for (const pattern of legacyPatterns) {
+        let match;
+        while ((match = pattern.exec(text)) !== null) {
+            const description = (match[1] || '').trim();
+            if (!description) continue;
+            const raw = match[0];
+            const key = `${raw}\n${description}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            results.push({ raw, description });
+        }
+    }
+
     return results;
 }
 

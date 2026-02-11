@@ -6,7 +6,7 @@
 
 ## ✨ 功能
 
-- **自动检测** AI 回复中的 `<spell>` 标签
+- **自动检测** AI 回复中的 `[[SV::SPELL::BEGIN::A9X5]]...[[SV::SPELL::END::A9X5]]` 标记（兼容旧 `<spell>` / `[spell]`）
 - **AI 翻译** 将法术描述发送给翻译模型，转换为渲染指令
 - **SVG 渲染** 支持圆形、线条、多边形等基本图形
 - **视觉效果** 发光、脉冲、旋转、淡入淡出、闪烁等动画
@@ -53,7 +53,7 @@ git clone <your-repo-url> spell-vision
 
 ## 📖 世界书设置
 
-**这是关键步骤！** 你需要将世界书模板导入，AI 才会在施法时输出 `<spell>` 标签。
+**这是关键步骤！** 你需要将世界书模板导入，AI 才会在施法时输出 Spell Vision 标记。
 
 ### 导入方法
 
@@ -76,9 +76,9 @@ git clone <your-repo-url> spell-vision
 ## 🎯 工作原理
 
 ```
-AI 输出带 <spell> 标签的消息
+AI 输出带 Spell Vision 标记的消息
         ↓
-Spell Vision 检测到 <spell> 标签
+Spell Vision 检测到标记块
         ↓
 提取法术描述，发送给翻译模型
         ↓
@@ -89,19 +89,23 @@ Spell Vision 检测到 <spell> 标签
 嵌入聊天消息中显示
 ```
 
-## 📝 Spell 标签格式
+## 📝 Spell 标记格式
 
 AI 在角色扮演时会这样输出：
 
 ```
 *她举起法杖，开始吟唱古老的咒语...*
 
-<spell>A swirling vortex of crimson and orange flames erupts from the caster's palm, spiraling outward in concentric rings. Golden sparks trail behind each ring, pulsing with arcane energy.</spell>
+[[SV::SPELL::BEGIN::A9X5]]A swirling vortex of crimson and orange flames erupts from the caster's palm, spiraling outward in concentric rings. Golden sparks trail behind each ring, pulsing with arcane energy.[[SV::SPELL::END::A9X5]]
 
 *一道灼热的火焰从法杖尖端喷射而出，直奔目标！*
 ```
 
-扩展会将 `<spell>` 标签中的描述翻译为 SVG 渲染指令并显示。
+扩展会将标记中的描述翻译为 SVG 渲染指令并显示。
+
+兼容性：
+- 新协议（推荐）：`[[SV::SPELL::BEGIN::A9X5]]...[[SV::SPELL::END::A9X5]]`
+- 旧协议（兼容）：`<spell>...</spell>` 与 `[spell]...[/spell]`
 
 ## 🎨 渲染指令 JSON Schema
 
@@ -146,7 +150,7 @@ AI 在角色扮演时会这样输出：
 |------|----------|
 | 没有渲染效果 | 检查扩展是否启用、API URL/Model 是否正确；仅在提供商要求时填写 API Key |
 | API 报错 | 检查 API URL 是否正确，密钥是否有效 |
-| AI 不输出 `<spell>` 标签 | 确认世界书已导入并启用 |
+| AI 不输出 Spell Vision 标记 | 确认世界书已导入并启用，且模型按模板输出 `[[SV::SPELL::BEGIN::A9X5]]...[[SV::SPELL::END::A9X5]]` |
 | 效果没出现 | 打开浏览器控制台 (F12) 查看 `[Spell Vision]` 日志 |
 
 ## 📄 License
