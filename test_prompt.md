@@ -4,6 +4,10 @@
 建议先确保世界书已启用，模型会输出：
 `[[SV::SPELL::BEGIN::A9X5]]...[[SV::SPELL::END::A9X5]]`
 
+模式说明：
+- 若设置为 `额外模型翻译`：使用下面现有提示词（标记内是自然语言描述）。
+- 若设置为 `主AI直出 SVG JSON`：请导入 `worldbook-template-direct-json.json`，并先跑下面第 21 条。
+
 ## 基础功能
 
 1. 火球术（单法术）
@@ -114,6 +118,11 @@ Narrate a high-fantasy spell cast in English. Include exactly one [[SV::SPELL::B
 20. 粒子效果覆盖
 ```text
 施放“流星尘暴”，在标记中强调大量漂浮粒子、不同速度、辉光尾迹。
+```
+
+21. 主AI直出 JSON（仅直出模式）
+```text
+请输出一段简短施法剧情，并在 [[SV::SPELL::BEGIN::A9X5]]...[[SV::SPELL::END::A9X5]] 内放置一个合法 SVG JSON 对象（不要放自然语言）。
 ```
 
 ## 建议执行顺序

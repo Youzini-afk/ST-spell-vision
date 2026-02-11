@@ -26,6 +26,10 @@
     box-sizing: border-box;
 }
 
+#spell-vision-settings .sv-input-disabled {
+    opacity: 0.6;
+}
+
 #spell-vision-settings .spell-vision-note {
     font-size: 0.8em;
     opacity: 0.7;

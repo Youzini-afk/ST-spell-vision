@@ -7,7 +7,7 @@
 ## ✨ 功能
 
 - **自动检测** AI 回复中的 `[[SV::SPELL::BEGIN::A9X5]]...[[SV::SPELL::END::A9X5]]` 标记（兼容旧 `<spell>` / `[spell]`）
-- **AI 翻译** 将法术描述发送给翻译模型，转换为渲染指令
+- **双模式渲染** 支持“额外模型翻译”与“主AI直出 SVG JSON”
 - **SVG 渲染** 支持圆形、线条、多边形等基本图形
 - **视觉效果** 发光、脉冲、旋转、淡入淡出、闪烁等动画
 - **粒子效果** 漂浮的魔法粒子
@@ -38,9 +38,14 @@ git clone <your-repo-url> spell-vision
 | 设置项 | 说明 | 默认值 |
 |--------|------|--------|
 | **Enable** | 启用/禁用扩展 | ✅ |
+| **Render Mode** | `额外模型翻译` 或 `主AI直出 SVG JSON` | `额外模型翻译` |
 | **API URL** | OpenAI 兼容 API 地址 | `https://generativelanguage.googleapis.com/v1beta/openai` |
 | **Model** | 翻译模型名称 | `gemini-2.5-pro-preview-06-05` |
 | **API Key** | API 密钥（可选，取决于提供商） | (空) |
+
+说明：
+- `额外模型翻译`：主AI输出视觉描述，插件再调用翻译模型生成 SVG JSON（原有流程）。
+- `主AI直出 SVG JSON`：主AI在标记内直接输出 JSON，插件不再发起二次 API 请求。
 
 ### 支持的 API 提供商
 
@@ -53,13 +58,15 @@ git clone <your-repo-url> spell-vision
 
 ## 📖 世界书设置
 
-**这是关键步骤！** 你需要将世界书模板导入，AI 才会在施法时输出 Spell Vision 标记。
+**这是关键步骤！** 你需要导入与渲染模式匹配的世界书模板。
 
 ### 导入方法
 
 1. 打开 SillyTavern 的 **世界书 (World Info / Lorebook)** 面板
 2. 点击 **导入 (Import)** 按钮
-3. 选择 `worldbook-template.json` 文件
+3. 根据模式选择模板文件：
+   - `worldbook-template.json`（额外模型翻译模式）
+   - `worldbook-template-direct-json.json`（主AI直出 SVG JSON 模式）
 4. 确认导入后，确保该条目已**启用**
 5. 建议将此世界书设为**全局启用**
 
@@ -150,6 +157,7 @@ AI 在角色扮演时会这样输出：
 |------|----------|
 | 没有渲染效果 | 检查扩展是否启用、API URL/Model 是否正确；仅在提供商要求时填写 API Key |
 | API 报错 | 检查 API URL 是否正确，密钥是否有效 |
+| 主AI直出模式渲染失败 | 检查标记内是否是合法 JSON 对象（可带 ```json 代码块） |
 | AI 不输出 Spell Vision 标记 | 确认世界书已导入并启用，且模型按模板输出 `[[SV::SPELL::BEGIN::A9X5]]...[[SV::SPELL::END::A9X5]]` |
 | 效果没出现 | 打开浏览器控制台 (F12) 查看 `[Spell Vision]` 日志 |
 

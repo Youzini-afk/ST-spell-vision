@@ -1,7 +1,7 @@
 /**
  * Spell Vision - SillyTavern Extension
- * Detects spell markers in AI replies, translates them to render instructions
- * via an OpenAI-compatible API, and renders SVG spell effects in chat.
+ * Detects spell markers in AI replies, then either translates descriptions
+ * via an OpenAI-compatible API or parses direct SVG JSON from the main AI.
  */
 
 import { extension_settings, getContext } from '../../../extensions.js';
@@ -17,6 +17,7 @@ const DEFAULT_SETTINGS = {
     apiKey: '',
     model: 'gemini-2.5-pro-preview-06-05',
     enabled: true,
+    renderMode: 'translate',
 };
 const MAX_DOM_RETRIES = 8;
 const DOM_RETRY_DELAY_MS = 200;
@@ -86,6 +87,9 @@ function loadSettings() {
     for (const [k, v] of Object.entries(DEFAULT_SETTINGS)) {
         if (s[k] === undefined) s[k] = v;
     }
+    if (s.renderMode !== 'translate' && s.renderMode !== 'main-json') {
+        s.renderMode = 'translate';
+    }
 }
 
 function getSettings() {
@@ -115,6 +119,13 @@ function createSettingsUI() {
                        placeholder="https://generativelanguage.googleapis.com/v1beta/openai" />
                 <div class="spell-vision-note">OpenAI 兼容 API 地址 (base URL, 不含 /chat/completions)</div>
 
+                <label for="sv-render-mode">渲染模式 / Render Mode</label>
+                <select id="sv-render-mode" class="text_pole">
+                    <option value="translate">额外模型翻译（推荐）</option>
+                    <option value="main-json">主AI直出 SVG JSON（不二次请求）</option>
+                </select>
+                <div class="spell-vision-note">切换“主AI直出”后，将不调用下方 API URL/Model/API Key。</div>
+
                 <label for="sv-model">Model</label>
                 <input type="text" id="sv-model" class="text_pole"
                        placeholder="gemini-2.5-pro-preview-06-05" />
@@ -126,7 +137,7 @@ function createSettingsUI() {
 
                 <hr />
                 <div class="spell-vision-note" style="margin-top:8px;">
-                    ⚡ 安装后请在世界书中添加 worldbook-template.json 的内容，让 AI 输出 [[SV::SPELL::BEGIN::A9X5]]...[[SV::SPELL::END::A9X5]]。
+                    ⚡ 模式=翻译：标记内写视觉描述；模式=主AI直出：标记内写完整 SVG JSON。
                 </div>
             </div>
         </div>
@@ -136,9 +147,21 @@ function createSettingsUI() {
 
     // Bind values
     const s = getSettings();
+    const updateModeUi = () => {
+        const directMode = s.renderMode === 'main-json';
+        $('#sv-api-url, #sv-model, #sv-api-key').prop('disabled', directMode);
+        $('#sv-api-url, #sv-model, #sv-api-key').toggleClass('sv-input-disabled', directMode);
+    };
+
     $('#sv-enabled').prop('checked', s.enabled).on('change', function () {
         s.enabled = !!$(this).prop('checked');
         saveSettingsDebounced();
+    });
+    $('#sv-render-mode').val(s.renderMode).on('change', function () {
+        const mode = $(this).val();
+        s.renderMode = mode === 'main-json' ? 'main-json' : 'translate';
+        saveSettingsDebounced();
+        updateModeUi();
     });
     $('#sv-api-url').val(s.apiUrl).on('input', function () {
         s.apiUrl = $(this).val().trim();
@@ -152,6 +175,8 @@ function createSettingsUI() {
         s.apiKey = $(this).val().trim();
         saveSettingsDebounced();
     });
+
+    updateModeUi();
 }
 
 // ─── Spell Tag Parser ────────────────────────────────────────────────
@@ -538,6 +563,32 @@ async function translateSpell(description) {
     return result;
 }
 
+function parseDirectSpellJson(description) {
+    const content = String(description || '').trim();
+    if (!content) {
+        throw new Error('法术标记为空，未提供 SVG JSON');
+    }
+
+    const trimmed = content
+        .replace(/^```(?:json)?\s*/i, '')
+        .replace(/\s*```$/i, '')
+        .trim();
+
+    const jsonObject = extractFirstJsonObject(trimmed);
+    if (!jsonObject) {
+        throw new Error('主AI模式需要在标记内输出合法 JSON 对象');
+    }
+
+    let parsed;
+    try {
+        parsed = JSON.parse(jsonObject);
+    } catch {
+        throw new Error('主AI输出的 SVG JSON 解析失败');
+    }
+
+    return sanitizeRenderData(parsed);
+}
+
 // ─── SVG Renderer ────────────────────────────────────────────────────
 
 function renderSpellSVG(spell) {
@@ -706,6 +757,8 @@ async function renderSpellsForMessage(messageIndex, spells, options = {}) {
     const signature = getRenderSignature(spells);
     if (!signature) return;
     const signatureHash = hashText(signature);
+    const s = getSettings();
+    const directJsonMode = s.renderMode === 'main-json';
 
     const context = getContext();
     const msgEl = $(`.mes[mesid="${messageIndex}"]`);
@@ -735,7 +788,9 @@ async function renderSpellsForMessage(messageIndex, spells, options = {}) {
             }
 
             try {
-                const renderData = await translateSpell(spell.description);
+                const renderData = directJsonMode
+                    ? parseDirectSpellJson(spell.description)
+                    : await translateSpell(spell.description);
                 const visual = buildSpellVisual(renderData);
                 if (placeholder) {
                     placeholder.replaceWith(visual);
