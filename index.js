@@ -252,6 +252,34 @@ function extractSpellTags(text) {
     return results;
 }
 
+function escapeRegex(text) {
+    return String(text).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function stripSpellMarkersFromMessageDom(msgEl) {
+    if (!msgEl || msgEl.length === 0) return;
+    const mesText = msgEl.find('.mes_text');
+    if (mesText.length === 0) return;
+
+    const html = mesText.html();
+    if (typeof html !== 'string' || html.length === 0) return;
+
+    const markerPatterns = [
+        new RegExp(`${escapeRegex(SV_PRIMARY_TAG.open)}[\\s\\S]*?${escapeRegex(SV_PRIMARY_TAG.close)}`, 'g'),
+        /<spell>[\s\S]*?<\/spell>/gi,
+        /\[spell\][\s\S]*?\[\/spell\]/gi,
+    ];
+
+    let nextHtml = html;
+    for (const pattern of markerPatterns) {
+        nextHtml = nextHtml.replace(pattern, '');
+    }
+
+    if (nextHtml !== html) {
+        mesText.html(nextHtml);
+    }
+}
+
 // ─── Translation API Call ────────────────────────────────────────────
 
 const SYSTEM_PROMPT = `You are a spell-to-SVG translator. The user gives you a natural language description of a magical spell visual effect. You MUST respond with ONLY a valid JSON object (no markdown, no code fences, no explanation).
@@ -589,6 +617,31 @@ function parseDirectSpellJson(description) {
     return sanitizeRenderData(parsed);
 }
 
+function tryParseDirectSpellJson(description) {
+    try {
+        return parseDirectSpellJson(description);
+    } catch {
+        return null;
+    }
+}
+
+async function getRenderDataFromDescription(description) {
+    const s = getSettings();
+    const directJsonMode = s.renderMode === 'main-json';
+
+    if (directJsonMode) {
+        return parseDirectSpellJson(description);
+    }
+
+    // Auto-detect direct JSON even in translate mode to reduce mode-mismatch failures.
+    const directJson = tryParseDirectSpellJson(description);
+    if (directJson) {
+        return directJson;
+    }
+
+    return translateSpell(description);
+}
+
 // ─── SVG Renderer ────────────────────────────────────────────────────
 
 function renderSpellSVG(spell) {
@@ -727,7 +780,28 @@ function normalizeMessageIndex(payload) {
     if (typeof payload === 'string' && /^\d+$/.test(payload)) return Number(payload);
     if (!payload || typeof payload !== 'object') return null;
 
-    const candidates = [payload.message_id, payload.mesid, payload.id, payload.messageIndex, payload.index];
+    const nested = payload.data && typeof payload.data === 'object' ? payload.data : null;
+    const messageObj = payload.message && typeof payload.message === 'object' ? payload.message : null;
+    const candidates = [
+        payload.message_id,
+        payload.mesid,
+        payload.id,
+        payload.messageIndex,
+        payload.index,
+        payload.messageId,
+        nested?.message_id,
+        nested?.mesid,
+        nested?.id,
+        nested?.messageIndex,
+        nested?.index,
+        nested?.messageId,
+        messageObj?.message_id,
+        messageObj?.mesid,
+        messageObj?.id,
+        messageObj?.messageIndex,
+        messageObj?.index,
+        messageObj?.messageId,
+    ];
     for (const value of candidates) {
         const n = Number(value);
         if (Number.isInteger(n) && n >= 0) return n;
@@ -757,9 +831,6 @@ async function renderSpellsForMessage(messageIndex, spells, options = {}) {
     const signature = getRenderSignature(spells);
     if (!signature) return;
     const signatureHash = hashText(signature);
-    const s = getSettings();
-    const directJsonMode = s.renderMode === 'main-json';
-
     const context = getContext();
     const msgEl = $(`.mes[mesid="${messageIndex}"]`);
     const mesText = msgEl.find('.mes_text');
@@ -778,6 +849,8 @@ async function renderSpellsForMessage(messageIndex, spells, options = {}) {
     mesText.find('.spell-vision-container, .spell-vision-error, .spell-vision-loading').remove();
 
     try {
+        stripSpellMarkersFromMessageDom(msgEl);
+
         for (const spell of spells) {
             if (!spell.description) continue;
 
@@ -788,9 +861,7 @@ async function renderSpellsForMessage(messageIndex, spells, options = {}) {
             }
 
             try {
-                const renderData = directJsonMode
-                    ? parseDirectSpellJson(spell.description)
-                    : await translateSpell(spell.description);
+                const renderData = await getRenderDataFromDescription(spell.description);
                 const visual = buildSpellVisual(renderData);
                 if (placeholder) {
                     placeholder.replaceWith(visual);
@@ -822,17 +893,22 @@ async function onMessageReceived(payload, retry = 0) {
     if (!s.enabled) return;
 
     const messageIndex = normalizeMessageIndex(payload);
-    if (messageIndex === null) return;
-
     const context = getContext();
-    const msg = context.chat?.[messageIndex];
+    let resolvedIndex = messageIndex;
+    if (resolvedIndex === null) {
+        const lastIndex = (context.chat?.length || 1) - 1;
+        if (lastIndex >= 0) resolvedIndex = lastIndex;
+    }
+    if (resolvedIndex === null) return;
+
+    const msg = context.chat?.[resolvedIndex];
     if (!msg || msg.is_user) return;
 
     const spells = extractSpellTags(msg.mes);
     if (spells.length === 0) return;
 
     // Find the message element in DOM
-    const msgEl = $(`.mes[mesid="${messageIndex}"]`);
+    const msgEl = $(`.mes[mesid="${resolvedIndex}"]`);
     const mesText = msgEl.find('.mes_text');
     if (msgEl.length === 0 || mesText.length === 0) {
         if (retry < MAX_DOM_RETRIES) {
@@ -841,7 +917,7 @@ async function onMessageReceived(payload, retry = 0) {
         return;
     }
 
-    await renderSpellsForMessage(messageIndex, spells, { showPlaceholder: true, showUiErrors: true });
+    await renderSpellsForMessage(resolvedIndex, spells, { showPlaceholder: true, showUiErrors: true });
 }
 
 // ─── Re-render on chat load (for history) ────────────────────────────
