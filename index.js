@@ -11,6 +11,7 @@ const EXT_NAME = 'spell-vision';
 const renderCache = new Map(); // cache: description -> sanitized renderData
 const pendingRenderKeys = new Set();
 let spellCounter = 0; // unique id for glow filters
+let spellScanTimer = null;
 
 const DEFAULT_SETTINGS = {
     apiUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
@@ -256,10 +257,89 @@ function escapeRegex(text) {
     return String(text).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function collectMatchRanges(text, pattern) {
+    const ranges = [];
+    if (!text) return ranges;
+
+    let match;
+    while ((match = pattern.exec(text)) !== null) {
+        const raw = match[0] || '';
+        if (!raw) {
+            pattern.lastIndex += 1;
+            continue;
+        }
+        ranges.push({ start: match.index, end: match.index + raw.length });
+    }
+    return ranges;
+}
+
+function locateTextPosition(indexEntries, absoluteIndex) {
+    for (const entry of indexEntries) {
+        if (absoluteIndex >= entry.start && absoluteIndex <= entry.end) {
+            return {
+                node: entry.node,
+                offset: absoluteIndex - entry.start,
+            };
+        }
+    }
+
+    if (indexEntries.length === 0) return null;
+    const last = indexEntries[indexEntries.length - 1];
+    return {
+        node: last.node,
+        offset: (last.node.nodeValue || '').length,
+    };
+}
+
+function stripSpellMarkersFromTextNodes(rootEl) {
+    if (!rootEl) return false;
+
+    const showText = window.NodeFilter ? window.NodeFilter.SHOW_TEXT : 4;
+    const walker = document.createTreeWalker(rootEl, showText);
+    const entries = [];
+    let mergedText = '';
+    let currentNode = walker.nextNode();
+
+    while (currentNode) {
+        const chunk = currentNode.nodeValue || '';
+        const start = mergedText.length;
+        mergedText += chunk;
+        entries.push({ node: currentNode, start, end: mergedText.length });
+        currentNode = walker.nextNode();
+    }
+
+    if (!mergedText) return false;
+
+    const ranges = [
+        ...collectMatchRanges(mergedText, new RegExp(`${escapeRegex(SV_PRIMARY_TAG.open)}[\\s\\S]*?${escapeRegex(SV_PRIMARY_TAG.close)}`, 'g')),
+        ...collectMatchRanges(mergedText, /<spell>[\s\S]*?<\/spell>/gi),
+        ...collectMatchRanges(mergedText, /\[spell\][\s\S]*?\[\/spell\]/gi),
+    ];
+
+    if (ranges.length === 0) return false;
+
+    ranges.sort((a, b) => b.start - a.start);
+    for (const range of ranges) {
+        const startPos = locateTextPosition(entries, range.start);
+        const endPos = locateTextPosition(entries, range.end);
+        if (!startPos || !endPos) continue;
+
+        const fragmentRange = document.createRange();
+        fragmentRange.setStart(startPos.node, startPos.offset);
+        fragmentRange.setEnd(endPos.node, endPos.offset);
+        fragmentRange.deleteContents();
+    }
+
+    return true;
+}
+
 function stripSpellMarkersFromMessageDom(msgEl) {
     if (!msgEl || msgEl.length === 0) return;
     const mesText = msgEl.find('.mes_text');
     if (mesText.length === 0) return;
+
+    const removedByTextNodes = stripSpellMarkersFromTextNodes(mesText.get(0));
+    if (removedByTextNodes) return;
 
     const html = mesText.html();
     if (typeof html !== 'string' || html.length === 0) return;
@@ -826,6 +906,30 @@ function buildRenderKey(context, messageIndex, signatureHash) {
     return `${chatId}:${messageIndex}:${signatureHash}`;
 }
 
+function findLatestAssistantSpellIndex(context) {
+    const chat = context?.chat;
+    if (!Array.isArray(chat) || chat.length === 0) return null;
+
+    for (let i = chat.length - 1; i >= 0; i--) {
+        const msg = chat[i];
+        if (!msg || msg.is_user) continue;
+        if (extractSpellTags(msg.mes).length > 0) return i;
+    }
+    return null;
+}
+
+function scheduleSpellScan(delayMs = 900) {
+    if (spellScanTimer) {
+        clearTimeout(spellScanTimer);
+        spellScanTimer = null;
+    }
+
+    spellScanTimer = setTimeout(() => {
+        spellScanTimer = null;
+        onChatChanged();
+    }, delayMs);
+}
+
 async function renderSpellsForMessage(messageIndex, spells, options = {}) {
     const { showPlaceholder = false, showUiErrors = false } = options;
     const signature = getRenderSignature(spells);
@@ -896,16 +1000,20 @@ async function onMessageReceived(payload, retry = 0) {
     const context = getContext();
     let resolvedIndex = messageIndex;
     if (resolvedIndex === null) {
-        const lastIndex = (context.chat?.length || 1) - 1;
-        if (lastIndex >= 0) resolvedIndex = lastIndex;
+        resolvedIndex = findLatestAssistantSpellIndex(context);
     }
     if (resolvedIndex === null) return;
 
-    const msg = context.chat?.[resolvedIndex];
-    if (!msg || msg.is_user) return;
-
-    const spells = extractSpellTags(msg.mes);
-    if (spells.length === 0) return;
+    let msg = context.chat?.[resolvedIndex];
+    let spells = extractSpellTags(msg?.mes);
+    if (!msg || msg.is_user || spells.length === 0) {
+        const latestSpellIndex = findLatestAssistantSpellIndex(context);
+        if (latestSpellIndex === null) return;
+        resolvedIndex = latestSpellIndex;
+        msg = context.chat?.[resolvedIndex];
+        spells = extractSpellTags(msg?.mes);
+        if (!msg || msg.is_user || spells.length === 0) return;
+    }
 
     // Find the message element in DOM
     const msgEl = $(`.mes[mesid="${resolvedIndex}"]`);
@@ -918,6 +1026,7 @@ async function onMessageReceived(payload, retry = 0) {
     }
 
     await renderSpellsForMessage(resolvedIndex, spells, { showPlaceholder: true, showUiErrors: true });
+    scheduleSpellScan(1200);
 }
 
 // ─── Re-render on chat load (for history) ────────────────────────────
@@ -958,6 +1067,7 @@ jQuery(async () => {
     // Listen for new AI messages
     eventSource.on(event_types.MESSAGE_RECEIVED, (payload) => {
         onMessageReceived(payload);
+        scheduleSpellScan(1200);
     });
 
     // Re-render when chat changes (switching chats, loading history)
