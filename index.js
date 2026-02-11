@@ -912,11 +912,11 @@ function createParticles(spell, container) {
         dot.style.height = `${size}px`;
         dot.style.background = color;
         dot.style.boxShadow = `0 0 ${size * 2}px ${color}`;
-        
+
         // Randomize positions based on mode
         let left = Math.random() * 100;
         let bottom = Math.random() * 100;
-        
+
         if (mode === 'fire' || mode === 'spark') {
             bottom = Math.random() * 40; // Start lower
         } else if (mode === 'snow') {
@@ -1098,66 +1098,90 @@ async function renderSpellsForMessage(messageIndex, spells, options = {}) {
     if (pendingRenderKeys.has(renderKey)) return;
 
     const alreadyRendered = msgEl.attr('data-sv-signature') === signatureHash
-        && msgEl.find('.spell-vision-container, .spell-vision-error, .spell-vision-loading').length > 0;
+        && msgEl.find('.spell-vision-container, .spell-vision-error').length > 0;
     if (alreadyRendered) return;
 
     pendingRenderKeys.add(renderKey);
     msgEl.attr('data-sv-signature', signatureHash);
     mesText.find('.spell-vision-container, .spell-vision-error, .spell-vision-loading').remove();
 
+    // Collect render results before touching DOM markers
+    const renderResults = [];
+    let allSucceeded = true;
+
+    for (let i = 0; i < spells.length; i++) {
+        const spell = spells[i];
+        if (!spell.description) {
+            renderResults.push({ type: 'skip' });
+            continue;
+        }
+
+        // Show loading placeholder immediately if requested
+        let loadingEl = null;
+        if (showPlaceholder) {
+            loadingEl = $('<div class="spell-vision-container spell-vision-loading">⏳ 正在渲染法术效果...</div>');
+            mesText.append(loadingEl);
+        }
+
+        try {
+            const renderData = await getRenderDataFromDescription(spell.description);
+            const visual = buildSpellVisual(renderData);
+            if (loadingEl) {
+                loadingEl.replaceWith(visual);
+            }
+            renderResults.push({ type: 'success', visual });
+            console.log(`[Spell Vision] Rendered: ${renderData.name || 'unnamed'}`);
+        } catch (err) {
+            allSucceeded = false;
+            const message = err?.name === 'AbortError'
+                ? '请求超时，请检查网络或模型响应速度'
+                : (err?.message || '未知错误');
+
+            const errDiv = $('<div class="spell-vision-error"></div>');
+            errDiv.text(`⚠️ 法术渲染失败: ${message}`);
+            if (loadingEl) {
+                loadingEl.replaceWith(errDiv);
+            }
+            renderResults.push({ type: 'error', errDiv });
+            console.error('[Spell Vision] Render error:', err);
+        }
+    }
+
+    // Now strip markers from DOM and insert visuals in-place
     try {
         const anchors = insertSpellAnchorsInMessage(msgEl, spells.length);
         stripSpellMarkersFromMessageDom(msgEl);
 
+        let resultIdx = 0;
         for (let i = 0; i < spells.length; i++) {
-            const spell = spells[i];
-            if (!spell.description) continue;
+            const result = renderResults[i];
+            if (!result || result.type === 'skip') continue;
 
-            let placeholder = null;
             const anchor = anchors[i];
-            if (anchor && showPlaceholder) {
-                placeholder = $('<div class="spell-vision-container spell-vision-loading">⏳ 正在渲染法术效果...</div>');
-                $(anchor).replaceWith(placeholder);
-            } else if (anchor) {
-                placeholder = $('<span class="sv-inline-anchor"></span>');
-                $(anchor).replaceWith(placeholder);
-            } else if (showPlaceholder) {
-                placeholder = $('<div class="spell-vision-container spell-vision-loading">⏳ 正在渲染法术效果...</div>');
-                mesText.append(placeholder);
-            }
+            const el = result.type === 'success' ? result.visual : result.errDiv;
 
-            try {
-                const renderData = await getRenderDataFromDescription(spell.description);
-                const visual = buildSpellVisual(renderData);
-                if (placeholder) {
-                    placeholder.replaceWith(visual);
-                } else {
-                    mesText.append(visual);
-                }
-                console.log(`[Spell Vision] Rendered: ${renderData.name || 'unnamed'}`);
-            } catch (err) {
-                const hasPlaceholder = !!placeholder;
-                const message = err?.name === 'AbortError'
-                    ? '请求超时，请检查网络或模型响应速度'
-                    : (err?.message || '未知错误');
+            if (!el) continue;
 
-                if (showUiErrors) {
-                    const errDiv = $('<div class="spell-vision-error"></div>');
-                    errDiv.text(`⚠️ 法术渲染失败: ${message}`);
-                    if (hasPlaceholder) {
-                        placeholder.replaceWith(errDiv);
-                    } else {
-                        mesText.append(errDiv);
-                    }
-                } else if (hasPlaceholder) {
-                    placeholder.remove();
-                }
-                console.error('[Spell Vision] Render error:', err);
+            // If visual was already appended to mesText (from loading flow), move it to anchor position
+            if (anchor) {
+                $(anchor).replaceWith(el);
+            } else if (!$.contains(mesText.get(0), el instanceof $ ? el.get(0) : el)) {
+                mesText.append(el);
             }
         }
-    } finally {
-        pendingRenderKeys.delete(renderKey);
+    } catch (domErr) {
+        console.error('[Spell Vision] DOM manipulation error:', domErr);
+        // If DOM manipulation failed, at least append results to mesText
+        for (const result of renderResults) {
+            if (result.type === 'skip') continue;
+            const el = result.type === 'success' ? result.visual : result.errDiv;
+            if (el && mesText.length > 0) {
+                mesText.append(el);
+            }
+        }
     }
+
+    pendingRenderKeys.delete(renderKey);
 }
 
 async function onMessageReceived(payload, retry = 0) {
@@ -1216,7 +1240,7 @@ async function onChatChanged() {
         const spells = extractSpellTags(msg.mes);
         if (spells.length === 0) continue;
 
-        await renderSpellsForMessage(i, spells, { showPlaceholder: false, showUiErrors: false });
+        await renderSpellsForMessage(i, spells, { showPlaceholder: false, showUiErrors: true });
     }
 }
 

@@ -134,64 +134,154 @@
 
 /* ---------- Animations ---------- */
 @keyframes sv-pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.66; transform: scale(1.08); }
+
+    0%,
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.66;
+        transform: scale(1.08);
+    }
 }
 
 @keyframes sv-rotate {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 @keyframes sv-fade-in {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
 }
 
 @keyframes sv-float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-6px); }
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-6px);
+    }
 }
 
 @keyframes sv-flicker {
-    0%, 100% { opacity: 1; }
-    18% { opacity: 0.55; }
-    52% { opacity: 0.35; }
-    78% { opacity: 0.75; }
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    18% {
+        opacity: 0.55;
+    }
+
+    52% {
+        opacity: 0.35;
+    }
+
+    78% {
+        opacity: 0.75;
+    }
 }
 
 @keyframes sv-surge {
-    0%, 100% { opacity: 0.72; transform: scale(0.95); filter: brightness(0.9); }
-    50% { opacity: 1; transform: scale(1.1); filter: brightness(1.25); }
+
+    0%,
+    100% {
+        opacity: 0.72;
+        transform: scale(0.95);
+        filter: brightness(0.9);
+    }
+
+    50% {
+        opacity: 1;
+        transform: scale(1.1);
+        filter: brightness(1.25);
+    }
 }
 
 @keyframes sv-shimmer {
-    0%, 100% { opacity: 0.55; filter: saturate(1); }
-    50% { opacity: 1; filter: saturate(1.5); }
+
+    0%,
+    100% {
+        opacity: 0.55;
+        filter: saturate(1);
+    }
+
+    50% {
+        opacity: 1;
+        filter: saturate(1.5);
+    }
 }
 
 @keyframes sv-container-breathe {
-    0%, 100% { box-shadow: 0 0 22px rgba(var(--sv-accent-rgb, 139, 92, 246), 0.22), inset 0 0 30px rgba(var(--sv-accent-rgb, 139, 92, 246), 0.12); }
-    50% { box-shadow: 0 0 30px rgba(var(--sv-accent-rgb, 139, 92, 246), 0.34), inset 0 0 44px rgba(var(--sv-accent-rgb, 139, 92, 246), 0.2); }
+
+    0%,
+    100% {
+        box-shadow: 0 0 22px rgba(var(--sv-accent-rgb, 139, 92, 246), 0.22), inset 0 0 30px rgba(var(--sv-accent-rgb, 139, 92, 246), 0.12);
+    }
+
+    50% {
+        box-shadow: 0 0 30px rgba(var(--sv-accent-rgb, 139, 92, 246), 0.34), inset 0 0 44px rgba(var(--sv-accent-rgb, 139, 92, 246), 0.2);
+    }
 }
 
 @keyframes sv-aura-spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 @keyframes sv-sheen {
-    0%, 100% { transform: translateX(-42%); opacity: 0.15; }
-    46% { transform: translateX(35%); opacity: 0.45; }
-    54% { transform: translateX(48%); opacity: 0.12; }
+
+    0%,
+    100% {
+        transform: translateX(-42%);
+        opacity: 0.15;
+    }
+
+    46% {
+        transform: translateX(35%);
+        opacity: 0.45;
+    }
+
+    54% {
+        transform: translateX(48%);
+        opacity: 0.12;
+    }
 }
 
 @keyframes sv-svg-drift {
-    0%, 100% { transform: translateY(0px) scale(1); }
-    50% { transform: translateY(-2px) scale(1.01); }
+
+    0%,
+    100% {
+        transform: translateY(0px) scale(1);
+    }
+
+    50% {
+        transform: translateY(-2px) scale(1.01);
+    }
 }
 
-/* Animation classes applied via JS */
 /* Animation classes applied via JS */
 .sv-anim-pulse {
     animation: sv-pulse var(--sv-duration, 2s) ease-in-out infinite;
@@ -212,7 +302,8 @@
 }
 
 .sv-anim-flicker {
-    animation: sv-flicker var(--sv-duration, 0.15s) linear infinite; /* Faster default */
+    animation: sv-flicker var(--sv-duration, 0.15s) linear infinite;
+    /* Faster default */
 }
 
 .sv-anim-surge {
@@ -252,50 +343,132 @@
 
 /* Keyframes for new animations */
 @keyframes sv-fly-across {
-    0% { transform: translateX(-120%) scale(0.8); opacity: 0; }
-    10% { opacity: 1; }
-    90% { opacity: 1; }
-    100% { transform: translateX(120%) scale(1.1); opacity: 0; }
+    0% {
+        transform: translateX(-120%) scale(0.8);
+        opacity: 0;
+    }
+
+    10% {
+        opacity: 1;
+    }
+
+    90% {
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateX(120%) scale(1.1);
+        opacity: 0;
+    }
 }
 
 @keyframes sv-fly-up {
-    0% { transform: translateY(120%) scale(0.5); opacity: 0; }
-    20% { opacity: 1; }
-    100% { transform: translateY(-120%) scale(1.2); opacity: 0; }
+    0% {
+        transform: translateY(120%) scale(0.5);
+        opacity: 0;
+    }
+
+    20% {
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateY(-120%) scale(1.2);
+        opacity: 0;
+    }
 }
 
 @keyframes sv-flash {
-    0%, 100% { opacity: 1; filter: brightness(1); }
-    5% { opacity: 0.8; filter: brightness(2); }
-    10% { opacity: 1; filter: brightness(1); }
+
+    0%,
+    100% {
+        opacity: 1;
+        filter: brightness(1);
+    }
+
+    5% {
+        opacity: 0.8;
+        filter: brightness(2);
+    }
+
+    10% {
+        opacity: 1;
+        filter: brightness(1);
+    }
 }
 
 @keyframes sv-orbit {
-    from { transform: rotate(0deg) translateX(40px) rotate(0deg); }
-    to { transform: rotate(360deg) translateX(40px) rotate(-360deg); }
+    from {
+        transform: rotate(0deg) translateX(40px) rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg) translateX(40px) rotate(-360deg);
+    }
 }
 
 @keyframes sv-shake {
-    0% { transform: translate(1px, 1px) rotate(0deg); }
-    10% { transform: translate(-1px, -2px) rotate(-1deg); }
-    20% { transform: translate(-3px, 0px) rotate(1deg); }
-    30% { transform: translate(3px, 2px) rotate(0deg); }
-    40% { transform: translate(1px, -1px) rotate(1deg); }
-    50% { transform: translate(-1px, 2px) rotate(-1deg); }
-    60% { transform: translate(-3px, 1px) rotate(0deg); }
-    70% { transform: translate(3px, 1px) rotate(-1deg); }
-    80% { transform: translate(-1px, -1px) rotate(1deg); }
-    90% { transform: translate(1px, 2px) rotate(0deg); }
-    100% { transform: translate(1px, -2px) rotate(-1deg); }
+    0% {
+        transform: translate(1px, 1px) rotate(0deg);
+    }
+
+    10% {
+        transform: translate(-1px, -2px) rotate(-1deg);
+    }
+
+    20% {
+        transform: translate(-3px, 0px) rotate(1deg);
+    }
+
+    30% {
+        transform: translate(3px, 2px) rotate(0deg);
+    }
+
+    40% {
+        transform: translate(1px, -1px) rotate(1deg);
+    }
+
+    50% {
+        transform: translate(-1px, 2px) rotate(-1deg);
+    }
+
+    60% {
+        transform: translate(-3px, 1px) rotate(0deg);
+    }
+
+    70% {
+        transform: translate(3px, 1px) rotate(-1deg);
+    }
+
+    80% {
+        transform: translate(-1px, -1px) rotate(1deg);
+    }
+
+    90% {
+        transform: translate(1px, 2px) rotate(0deg);
+    }
+
+    100% {
+        transform: translate(1px, -2px) rotate(-1deg);
+    }
 }
 
 @keyframes sv-converge {
-    0% { transform: scale(2); opacity: 0; }
-    50% { opacity: 0.8; }
-    100% { transform: scale(0.1); opacity: 1; }
+    0% {
+        transform: scale(2);
+        opacity: 0;
+    }
+
+    50% {
+        opacity: 0.8;
+    }
+
+    100% {
+        transform: scale(0.1);
+        opacity: 1;
+    }
 }
 
-/* ---------- Particles ---------- */
 /* ---------- Particles ---------- */
 .sv-particle {
     position: absolute;
@@ -316,7 +489,8 @@
 /* Fire/Spark (Rising fast + lateral shake) */
 .sv-particle.mode-fire,
 .sv-particle.mode-spark {
-    border-radius: 40% 60% 60% 40% / 40% 50% 50% 60%; /* Slightly irregular */
+    border-radius: 40% 60% 60% 40% / 40% 50% 50% 60%;
+    /* Slightly irregular */
     animation:
         sv-particle-fire-rise var(--sv-particle-duration, 1.5s) ease-out infinite,
         sv-particle-twinkle 0.5s ease-in-out infinite alternate;
@@ -340,36 +514,91 @@
 
 /* Keyframes */
 @keyframes sv-particle-rise {
-    0% { opacity: 0; transform: translate3d(0, 0, 0) scale(0.35); }
-    20% { opacity: 1; }
-    100% { opacity: 0; transform: translate3d(var(--sv-particle-drift, 0px), calc(-1 * var(--sv-particle-rise, 70px)), 0) scale(var(--sv-particle-scale-end, 0.2)); }
+    0% {
+        opacity: 0;
+        transform: translate3d(0, 0, 0) scale(0.35);
+    }
+
+    20% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0;
+        transform: translate3d(var(--sv-particle-drift, 0px), calc(-1 * var(--sv-particle-rise, 70px)), 0) scale(var(--sv-particle-scale-end, 0.2));
+    }
 }
 
 @keyframes sv-particle-fire-rise {
-    0% { opacity: 0; transform: translate3d(0, 0, 0) scale(0.8); }
-    10% { opacity: 1; }
-    100% { opacity: 0; transform: translate3d(var(--sv-particle-drift, 0px), -120px, 0) scale(0); }
+    0% {
+        opacity: 0;
+        transform: translate3d(0, 0, 0) scale(0.8);
+    }
+
+    10% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0;
+        transform: translate3d(var(--sv-particle-drift, 0px), -120px, 0) scale(0);
+    }
 }
 
 @keyframes sv-particle-fall {
-    0% { opacity: 0; transform: translate3d(0, -20px, 0) scale(0.8); }
-    10% { opacity: 1; }
-    90% { opacity: 1; }
-    100% { opacity: 0; transform: translate3d(var(--sv-particle-drift, 0px), 150px, 0) scale(0.4); }
+    0% {
+        opacity: 0;
+        transform: translate3d(0, -20px, 0) scale(0.8);
+    }
+
+    10% {
+        opacity: 1;
+    }
+
+    90% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0;
+        transform: translate3d(var(--sv-particle-drift, 0px), 150px, 0) scale(0.4);
+    }
 }
 
 @keyframes sv-particle-sway {
-    from { margin-left: -10px; }
-    to { margin-left: 10px; }
+    from {
+        margin-left: -10px;
+    }
+
+    to {
+        margin-left: 10px;
+    }
 }
 
 @keyframes sv-particle-converge {
-    0% { opacity: 0; transform: translate3d(var(--sv-particle-start-x, 100px), var(--sv-particle-start-y, 100px), 0) scale(1.5); }
-    20% { opacity: 1; }
-    100% { opacity: 0; transform: translate3d(0, 0, 0) scale(0.2); }
+    0% {
+        opacity: 0;
+        transform: translate3d(var(--sv-particle-start-x, 100px), var(--sv-particle-start-y, 100px), 0) scale(1.5);
+    }
+
+    20% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0;
+        transform: translate3d(0, 0, 0) scale(0.2);
+    }
 }
 
 @keyframes sv-particle-twinkle {
-    0%, 100% { filter: brightness(0.9); }
-    50% { filter: brightness(1.5); }
+
+    0%,
+    100% {
+        filter: brightness(0.9);
+    }
+
+    50% {
+        filter: brightness(1.5);
+    }
 }
