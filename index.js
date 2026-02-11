@@ -78,7 +78,7 @@ const ALLOWED_STYLE_PROPS = new Set([
     'font-weight',
     'letter-spacing',
 ]);
-const ALLOWED_ANIMATIONS = new Set(['pulse', 'rotate', 'fade-in', 'float', 'flicker']);
+const ALLOWED_ANIMATIONS = new Set(['pulse', 'rotate', 'fade-in', 'float', 'flicker', 'surge', 'shimmer']);
 
 // ─── Settings ────────────────────────────────────────────────────────
 
@@ -273,6 +273,19 @@ function collectMatchRanges(text, pattern) {
     return ranges;
 }
 
+function collectSpellMarkerRanges(text) {
+    if (!text) return [];
+
+    const ranges = [
+        ...collectMatchRanges(text, new RegExp(`${escapeRegex(SV_PRIMARY_TAG.open)}[\\s\\S]*?${escapeRegex(SV_PRIMARY_TAG.close)}`, 'g')),
+        ...collectMatchRanges(text, /<spell>[\s\S]*?<\/spell>/gi),
+        ...collectMatchRanges(text, /\[spell\][\s\S]*?\[\/spell\]/gi),
+    ];
+
+    ranges.sort((a, b) => a.start - b.start);
+    return ranges;
+}
+
 function locateTextPosition(indexEntries, absoluteIndex) {
     for (const entry of indexEntries) {
         if (absoluteIndex >= entry.start && absoluteIndex <= entry.end) {
@@ -291,8 +304,8 @@ function locateTextPosition(indexEntries, absoluteIndex) {
     };
 }
 
-function stripSpellMarkersFromTextNodes(rootEl) {
-    if (!rootEl) return false;
+function buildTextIndexEntries(rootEl) {
+    if (!rootEl) return { entries: [], text: '' };
 
     const showText = window.NodeFilter ? window.NodeFilter.SHOW_TEXT : 4;
     const walker = document.createTreeWalker(rootEl, showText);
@@ -308,13 +321,49 @@ function stripSpellMarkersFromTextNodes(rootEl) {
         currentNode = walker.nextNode();
     }
 
+    return { entries, text: mergedText };
+}
+
+function insertSpellAnchorsInMessage(msgEl, count) {
+    const mesText = msgEl.find('.mes_text');
+    if (mesText.length === 0 || count <= 0) return [];
+
+    const root = mesText.get(0);
+    const { entries, text } = buildTextIndexEntries(root);
+    if (!text || entries.length === 0) return [];
+
+    const ranges = collectSpellMarkerRanges(text).slice(0, count);
+    if (ranges.length === 0) return [];
+
+    const anchors = new Array(count).fill(null);
+    for (let i = ranges.length - 1; i >= 0; i--) {
+        const range = ranges[i];
+        const startPos = locateTextPosition(entries, range.start);
+        const endPos = locateTextPosition(entries, range.end);
+        if (!startPos || !endPos) continue;
+
+        const fragmentRange = document.createRange();
+        fragmentRange.setStart(startPos.node, startPos.offset);
+        fragmentRange.setEnd(endPos.node, endPos.offset);
+        fragmentRange.deleteContents();
+
+        const anchor = document.createElement('span');
+        anchor.className = 'sv-inline-anchor';
+        fragmentRange.insertNode(anchor);
+        anchors[i] = anchor;
+    }
+
+    return anchors;
+}
+
+function stripSpellMarkersFromTextNodes(rootEl) {
+    if (!rootEl) return false;
+
+    const { entries, text: mergedText } = buildTextIndexEntries(rootEl);
+
     if (!mergedText) return false;
 
-    const ranges = [
-        ...collectMatchRanges(mergedText, new RegExp(`${escapeRegex(SV_PRIMARY_TAG.open)}[\\s\\S]*?${escapeRegex(SV_PRIMARY_TAG.close)}`, 'g')),
-        ...collectMatchRanges(mergedText, /<spell>[\s\S]*?<\/spell>/gi),
-        ...collectMatchRanges(mergedText, /\[spell\][\s\S]*?\[\/spell\]/gi),
-    ];
+    const ranges = collectSpellMarkerRanges(mergedText);
 
     if (ranges.length === 0) return false;
 
@@ -377,8 +426,9 @@ JSON Schema:
       "style": { CSS style properties, e.g. "fill","stroke","stroke-width","opacity","fill-opacity" },
       "glow": true | false (apply glow filter),
       "glowStrength": "soft" | "strong",
-      "animation": "pulse" | "rotate" | "fade-in" | "float" | "flicker" | null,
+      "animation": "pulse" | "rotate" | "fade-in" | "float" | "flicker" | "surge" | "shimmer" | null,
       "animationDuration": "string (CSS duration, e.g. '2s')",
+      "animationDelay": "string (CSS delay, e.g. '-0.4s', optional)",
       "content": "string (for text type only)"
     }
   ],
@@ -392,13 +442,15 @@ JSON Schema:
 }
 
 Guidelines:
-- Use vibrant magical colors (purples, blues, golds, cyans, greens)
-- Always include at least one glowing element
-- Use animations to make the spell feel alive
-- Keep it visually impressive but not overly complex (5-15 elements)
+- Build layered composition: 1 core shape + 1-3 rings/arcs + 2-6 accent trails/sparks
+- Use vibrant magical colors with contrast (warm core + cool aura OR inverse)
+- Always include at least one strong glow and one soft glow element
+- Use varied animation timings (not all identical)
+- Keep it visually impressive but not overly complex (6-16 elements)
 - Coordinates should fit within the width/height you specify
 - For polygon, use "points" attr like "100,10 40,198 190,78 10,78 160,198"
 - For path, use standard SVG path "d" attribute
+- Prefer semi-transparent layering over fully opaque flat fills
 - Respond with raw JSON only, no wrapping`;
 
 function toKebabCase(value) {
@@ -429,10 +481,11 @@ function sanitizeStyleName(name) {
     return key;
 }
 
-function parseDuration(value, fallback = '2s') {
+function parseTimeValue(value, fallback = '2s', allowNegative = false) {
     const text = sanitizeStringValue(value, 20);
     if (!text) return fallback;
-    if (!/^\d+(\.\d+)?(ms|s)$/i.test(text)) return fallback;
+    const pattern = allowNegative ? /^-?\d+(\.\d+)?(ms|s)$/i : /^\d+(\.\d+)?(ms|s)$/i;
+    if (!pattern.test(text)) return fallback;
     return text;
 }
 
@@ -465,6 +518,7 @@ function sanitizeRenderData(raw) {
             glowStrength: item.glowStrength === 'strong' ? 'strong' : 'soft',
             animation: null,
             animationDuration: '2s',
+            animationDelay: '0s',
             content: '',
         };
 
@@ -489,7 +543,8 @@ function sanitizeRenderData(raw) {
         const animation = String(item.animation || '').trim();
         if (ALLOWED_ANIMATIONS.has(animation)) {
             element.animation = animation;
-            element.animationDuration = parseDuration(item.animationDuration, '2s');
+            element.animationDuration = parseTimeValue(item.animationDuration, '2s', false);
+            element.animationDelay = parseTimeValue(item.animationDelay, '0s', true);
         }
 
         if (type === 'text') {
@@ -508,6 +563,29 @@ function sanitizeRenderData(raw) {
             glowStrength: 'soft',
             animation: 'pulse',
             animationDuration: '2s',
+            animationDelay: '-0.3s',
+            content: '',
+        });
+        spell.elements.push({
+            type: 'circle',
+            attrs: { cx: '180', cy: '120', r: '64' },
+            style: { stroke: '#7dd3fc', 'stroke-width': '2', fill: 'none', opacity: '0.35' },
+            glow: true,
+            glowStrength: 'soft',
+            animation: 'rotate',
+            animationDuration: '7s',
+            animationDelay: '-1.2s',
+            content: '',
+        });
+        spell.elements.push({
+            type: 'path',
+            attrs: { d: 'M80 150 Q180 40 280 150' },
+            style: { stroke: '#fcd34d', 'stroke-width': '2', fill: 'none', opacity: '0.45' },
+            glow: true,
+            glowStrength: 'soft',
+            animation: 'flicker',
+            animationDuration: '0.45s',
+            animationDelay: '-0.1s',
             content: '',
         });
     }
@@ -798,6 +876,11 @@ function renderSpellSVG(spell) {
             if (el.animationDuration) {
                 node.style.setProperty('--sv-duration', el.animationDuration);
             }
+            if (el.animationDelay && el.animationDelay !== '0s') {
+                node.style.animationDelay = el.animationDelay;
+            } else {
+                node.style.animationDelay = `${(-Math.random() * 1.2).toFixed(2)}s`;
+            }
         }
 
         svg.appendChild(node);
@@ -825,9 +908,45 @@ function createParticles(spell, container) {
         dot.style.left = `${Math.random() * 90 + 5}%`;
         dot.style.bottom = `${Math.random() * 30}%`;
         dot.style.setProperty('--sv-particle-duration', `${speed + Math.random() * 2}s`);
+        dot.style.setProperty('--sv-particle-rise', `${50 + Math.random() * 90}px`);
+        dot.style.setProperty('--sv-particle-drift', `${(Math.random() * 26 - 13).toFixed(1)}px`);
+        dot.style.setProperty('--sv-particle-scale-end', `${(Math.random() * 0.6 + 0.1).toFixed(2)}`);
         dot.style.animationDelay = `${Math.random() * speed}s`;
         container.appendChild(dot);
     }
+}
+
+function extractAccentColor(spell) {
+    const candidates = [];
+    if (spell.background) candidates.push(spell.background);
+    if (Array.isArray(spell.elements)) {
+        for (const el of spell.elements) {
+            if (el?.style?.fill) candidates.push(el.style.fill);
+            if (el?.style?.stroke) candidates.push(el.style.stroke);
+        }
+    }
+    return candidates.find((v) => typeof v === 'string' && v.trim()) || '#8b5cf6';
+}
+
+function colorToRgb(value) {
+    if (typeof value !== 'string') return '139, 92, 246';
+    const text = value.trim();
+    const hexMatch = text.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+    if (hexMatch) {
+        let hex = hexMatch[1];
+        if (hex.length === 3) {
+            hex = `${hex[0]}${hex[0]}${hex[1]}${hex[1]}${hex[2]}${hex[2]}`;
+        }
+        const r = parseInt(hex.slice(0, 2), 16);
+        const g = parseInt(hex.slice(2, 4), 16);
+        const b = parseInt(hex.slice(4, 6), 16);
+        return `${r}, ${g}, ${b}`;
+    }
+    const rgbMatch = text.match(/^rgb[a]?\(([^)]+)\)$/i);
+    if (rgbMatch) {
+        return rgbMatch[1].split(',').slice(0, 3).map((x) => x.trim()).join(', ');
+    }
+    return '139, 92, 246';
 }
 
 // ─── Build visual container ──────────────────────────────────────────
@@ -835,8 +954,12 @@ function createParticles(spell, container) {
 function buildSpellVisual(spell) {
     const wrapper = document.createElement('div');
     wrapper.classList.add('spell-vision-container');
+    const accent = extractAccentColor(spell);
+    wrapper.style.setProperty('--sv-accent', accent);
+    wrapper.style.setProperty('--sv-accent-rgb', colorToRgb(accent));
 
     const svg = renderSpellSVG(spell);
+    svg.classList.add('spell-vision-svg');
     wrapper.appendChild(svg);
 
     // Particles overlay
@@ -953,13 +1076,22 @@ async function renderSpellsForMessage(messageIndex, spells, options = {}) {
     mesText.find('.spell-vision-container, .spell-vision-error, .spell-vision-loading').remove();
 
     try {
+        const anchors = insertSpellAnchorsInMessage(msgEl, spells.length);
         stripSpellMarkersFromMessageDom(msgEl);
 
-        for (const spell of spells) {
+        for (let i = 0; i < spells.length; i++) {
+            const spell = spells[i];
             if (!spell.description) continue;
 
             let placeholder = null;
-            if (showPlaceholder) {
+            const anchor = anchors[i];
+            if (anchor && showPlaceholder) {
+                placeholder = $('<div class="spell-vision-container spell-vision-loading">⏳ 正在渲染法术效果...</div>');
+                $(anchor).replaceWith(placeholder);
+            } else if (anchor) {
+                placeholder = $('<span class="sv-inline-anchor"></span>');
+                $(anchor).replaceWith(placeholder);
+            } else if (showPlaceholder) {
                 placeholder = $('<div class="spell-vision-container spell-vision-loading">⏳ 正在渲染法术效果...</div>');
                 mesText.append(placeholder);
             }
@@ -974,7 +1106,7 @@ async function renderSpellsForMessage(messageIndex, spells, options = {}) {
                 }
                 console.log(`[Spell Vision] Rendered: ${renderData.name || 'unnamed'}`);
             } catch (err) {
-                if (placeholder) placeholder.remove();
+                const hasPlaceholder = !!placeholder;
                 const message = err?.name === 'AbortError'
                     ? '请求超时，请检查网络或模型响应速度'
                     : (err?.message || '未知错误');
@@ -982,7 +1114,13 @@ async function renderSpellsForMessage(messageIndex, spells, options = {}) {
                 if (showUiErrors) {
                     const errDiv = $('<div class="spell-vision-error"></div>');
                     errDiv.text(`⚠️ 法术渲染失败: ${message}`);
-                    mesText.append(errDiv);
+                    if (hasPlaceholder) {
+                        placeholder.replaceWith(errDiv);
+                    } else {
+                        mesText.append(errDiv);
+                    }
+                } else if (hasPlaceholder) {
+                    placeholder.remove();
                 }
                 console.error('[Spell Vision] Render error:', err);
             }

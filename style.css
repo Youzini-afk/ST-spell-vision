@@ -44,25 +44,67 @@
     margin: 12px auto;
     border-radius: 12px;
     overflow: hidden;
-    background: radial-gradient(ellipse at center, rgba(10, 5, 30, 0.95), rgba(0, 0, 0, 0.98));
-    border: 1px solid rgba(120, 80, 255, 0.25);
-    box-shadow: 0 0 20px rgba(100, 60, 255, 0.15);
+    background: radial-gradient(120% 90% at 50% 35%, rgba(16, 24, 42, 0.92), rgba(4, 6, 18, 0.98) 70%);
+    border: 1px solid rgba(var(--sv-accent-rgb, 139, 92, 246), 0.35);
+    box-shadow:
+        0 0 22px rgba(var(--sv-accent-rgb, 139, 92, 246), 0.22),
+        inset 0 0 30px rgba(var(--sv-accent-rgb, 139, 92, 246), 0.12);
+    backdrop-filter: blur(1px);
+    transform: translateZ(0);
+    animation: sv-container-breathe 6s ease-in-out infinite;
+}
+
+.spell-vision-container::before {
+    content: "";
+    position: absolute;
+    inset: -18%;
+    pointer-events: none;
+    z-index: 0;
+    background:
+        conic-gradient(from 0deg, rgba(var(--sv-accent-rgb, 139, 92, 246), 0.04), rgba(255, 255, 255, 0), rgba(var(--sv-accent-rgb, 139, 92, 246), 0.15), rgba(255, 255, 255, 0));
+    animation: sv-aura-spin 12s linear infinite;
+}
+
+.spell-vision-container::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
+    background:
+        linear-gradient(115deg,
+            rgba(255, 255, 255, 0) 0%,
+            rgba(255, 255, 255, 0.08) 38%,
+            rgba(255, 255, 255, 0) 55%);
+    mix-blend-mode: screen;
+    opacity: 0.55;
+    animation: sv-sheen 4.8s ease-in-out infinite;
 }
 
 .spell-vision-container svg {
     display: block;
     width: 100%;
     height: auto;
+    position: relative;
+    z-index: 1;
+}
+
+.spell-vision-svg {
+    transform-origin: center;
+    animation: sv-svg-drift 7s ease-in-out infinite;
 }
 
 .spell-vision-label {
     text-align: center;
     padding: 6px 10px;
     font-size: 0.8em;
-    color: rgba(200, 180, 255, 0.8);
-    background: rgba(0, 0, 0, 0.4);
+    color: rgba(236, 240, 255, 0.9);
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.52));
     letter-spacing: 1px;
     text-transform: uppercase;
+    position: relative;
+    z-index: 3;
+    text-shadow: 0 0 10px rgba(var(--sv-accent-rgb, 139, 92, 246), 0.5);
 }
 
 .spell-vision-error {
@@ -93,7 +135,7 @@
 /* ---------- Animations ---------- */
 @keyframes sv-pulse {
     0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.6; transform: scale(1.08); }
+    50% { opacity: 0.66; transform: scale(1.08); }
 }
 
 @keyframes sv-rotate {
@@ -113,7 +155,40 @@
 
 @keyframes sv-flicker {
     0%, 100% { opacity: 1; }
-    50% { opacity: 0.3; }
+    18% { opacity: 0.55; }
+    52% { opacity: 0.35; }
+    78% { opacity: 0.75; }
+}
+
+@keyframes sv-surge {
+    0%, 100% { opacity: 0.72; transform: scale(0.95); filter: brightness(0.9); }
+    50% { opacity: 1; transform: scale(1.1); filter: brightness(1.25); }
+}
+
+@keyframes sv-shimmer {
+    0%, 100% { opacity: 0.55; filter: saturate(1); }
+    50% { opacity: 1; filter: saturate(1.5); }
+}
+
+@keyframes sv-container-breathe {
+    0%, 100% { box-shadow: 0 0 22px rgba(var(--sv-accent-rgb, 139, 92, 246), 0.22), inset 0 0 30px rgba(var(--sv-accent-rgb, 139, 92, 246), 0.12); }
+    50% { box-shadow: 0 0 30px rgba(var(--sv-accent-rgb, 139, 92, 246), 0.34), inset 0 0 44px rgba(var(--sv-accent-rgb, 139, 92, 246), 0.2); }
+}
+
+@keyframes sv-aura-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+@keyframes sv-sheen {
+    0%, 100% { transform: translateX(-42%); opacity: 0.15; }
+    46% { transform: translateX(35%); opacity: 0.45; }
+    54% { transform: translateX(48%); opacity: 0.12; }
+}
+
+@keyframes sv-svg-drift {
+    0%, 100% { transform: translateY(0px) scale(1); }
+    50% { transform: translateY(-2px) scale(1.01); }
 }
 
 /* Animation classes applied via JS */
@@ -139,25 +214,42 @@
     animation: sv-flicker var(--sv-duration, 0.15s) linear infinite;
 }
 
+.sv-anim-surge {
+    animation: sv-surge var(--sv-duration, 2.4s) ease-in-out infinite;
+}
+
+.sv-anim-shimmer {
+    animation: sv-shimmer var(--sv-duration, 1.6s) ease-in-out infinite;
+}
+
 /* ---------- Particles ---------- */
 .sv-particle {
     position: absolute;
     border-radius: 50%;
     pointer-events: none;
-    animation: sv-particle-rise var(--sv-particle-duration, 3s) ease-out infinite;
+    z-index: 2;
+    animation:
+        sv-particle-rise var(--sv-particle-duration, 3s) cubic-bezier(0.2, 0.6, 0.2, 1) infinite,
+        sv-particle-twinkle calc(var(--sv-particle-duration, 3s) * 0.45) ease-in-out infinite;
     opacity: 0;
+    will-change: transform, opacity;
 }
 
 @keyframes sv-particle-rise {
     0% {
         opacity: 0;
-        transform: translateY(0) scale(0.5);
+        transform: translate3d(0, 0, 0) scale(0.35);
     }
     20% {
         opacity: 1;
     }
     100% {
         opacity: 0;
-        transform: translateY(-60px) scale(0);
+        transform: translate3d(var(--sv-particle-drift, 0px), calc(-1 * var(--sv-particle-rise, 70px)), 0) scale(var(--sv-particle-scale-end, 0.2));
     }
+}
+
+@keyframes sv-particle-twinkle {
+    0%, 100% { filter: brightness(0.9); }
+    50% { filter: brightness(1.35); }
 }

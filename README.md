@@ -149,7 +149,7 @@ AI 在角色扮演时会这样输出：
 `circle` | `rect` | `ellipse` | `line` | `polygon` | `path` | `text`
 
 ### 支持的动画
-`pulse` | `rotate` | `fade-in` | `float` | `flicker`
+`pulse` | `rotate` | `fade-in` | `float` | `flicker` | `surge` | `shimmer`
 
 ## 🐛 故障排除
 
